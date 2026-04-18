@@ -1,2 +1,2 @@
-# Tech_Art_Manuel_Castellani
+Repositorio para la Especializacion en Technical Artist. Max Sarlija Academy
 
