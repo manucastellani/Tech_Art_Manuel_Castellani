@@ -1,7 +1,7 @@
-Renaming Tool(Maya MEL)
+### **Renaming Tool(Maya MEL)**
 UE Production Toolkit is a professional-grade script for Autodesk Maya designed to streamline the pipeline between Maya and Unreal Engine. It automates naming conventions, geometry cleanup, and scene auditing to ensure engine-ready assets.
 
- Key Features
+### **Key Features**
 1. Smart Rename (Auto-Prefix)
 An intelligent algorithm that analyzes object hierarchy and construction history to rename objects automatically:
 
@@ -25,7 +25,7 @@ Freeze Transformations.
 
 Center Pivot.
 
-🛠️ Installation & Usage
+### **🛠️ Installation & Usage**
 Step-by-Step Guide
 To ensure the tool runs correctly in your Maya session, follow these steps:
 
@@ -53,7 +53,7 @@ Autodesk Maya: Compatible with 2024 and newer versions.
 
 OS: Windows, macOS, Linux.
 
- License
+### **License**
 This project is licensed under the MIT License. Feel free to use, modify, and distribute it in your productions.
 
 Developed by Senior Technical Artist.
