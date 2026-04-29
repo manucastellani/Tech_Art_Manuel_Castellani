@@ -26,10 +26,10 @@ Freeze Transformations.
 Center Pivot.
 
 ### **🛠️ Installation & Usage**
-Step-by-Step Guide
+### **Step-by-Step Guide*
 To ensure the tool runs correctly in your Maya session, follow these steps:
 
-Copy the Code: Go to the SCRIPT_CODE.md file in this folder and copy the entire code block.
+Copy the Code: Go to the RenamingTool_Script.mel file in this folder and copy the entire code block.
 
 Open Script Editor: In Autodesk Maya, open the Script Editor (bottom right icon or Windows > General Editors > Script Editor).
 
