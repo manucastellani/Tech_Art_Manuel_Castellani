@@ -1,0 +1,225 @@
+/*
+    Script: UE_Production_Toolkit_v13_Pro.mel
+    Version: 13.0
+    Author: Senior Technical Artist
+    Description: Advanced Maya to Unreal Engine naming and cleanup utility.
+*/
+
+// --- 1. CORE LOGIC: SMART RENAMING ---
+
+proc string getSmartName(string $obj, int $index, int $totalCount) {
+    string $buffer[];
+    tokenize $obj "|" $buffer;
+    string $name = $buffer[size($buffer)-1];
+
+    // [A] EXTRACT TECHNICAL SUFFIXES (LODs & Variations)
+    string $lodSuffix = `match "_LOD[0-9]$" $name`;
+    string $varSuffix = `match "_[A-Z]$" $name`;
+    
+    // Base name cleanup
+    string $tempBase = $name;
+    if ($lodSuffix != "") $tempBase = `substituteAllString $tempBase $lodSuffix ""`;
+    if ($varSuffix != "") $tempBase = `substituteAllString $tempBase $varSuffix ""`;
+    
+    // Remove common production clutter
+    $tempBase = `substituteAllString $tempBase "_final" ""`;
+    $tempBase = `substituteAllString $tempBase "_v[0-9]+" ""`;
+    
+    // Strip existing prefixes to avoid double naming (e.g., SM_SM_Asset)
+    string $prefixes[] = {"SM_", "SK_", "M_", "T_", "MI_", "FX_", "JNT_"};
+    for ($p in $prefixes) { 
+        if (`startsWith $tempBase $p`) $tempBase = `substring $tempBase (size($p)+1) (size($tempBase))`; 
+    }
+
+    // Isolate pure name (strip trailing digits)
+    string $pureBase = `match "^[^0-9]+" $tempBase`;
+    if ($pureBase == "") $pureBase = $tempBase;
+    if (`endsWith $pureBase "_"`) $pureBase = `substring $pureBase 1 (size($pureBase)-1) `;
+
+    // [B] AUTOMATIC PREFIX DETECTION
+    string $prefix = ""; 
+    string $shapes[] = `listRelatives -s $obj`;
+    
+    if (`nodeType $obj` == "joint") {
+        $prefix = "JNT";
+    } 
+    else if (size($shapes) > 0 && `nodeType $shapes[0]` == "mesh") {
+        $prefix = "SM"; // Default Static Mesh
+        string $history[] = `listHistory $obj`;
+        for ($node in $history) { 
+            if (`nodeType $node` == "skinCluster") { 
+                $prefix = "SK"; // Skeletal Mesh detected
+                break; 
+            } 
+        }
+    }
+
+    // [C] FINAL STRING CONSTRUCTION
+    string $final = "";
+    if ($prefix != "") {
+        $final = ($prefix + "_" + $pureBase);
+    } else {
+        $final = $pureBase;
+    }
+    
+    if ($varSuffix != "") {
+        $final = ($final + $varSuffix);
+    }
+    
+    // CONDITIONAL NUMBERING
+    if ($totalCount > 1) {
+        string $idxStr = ($index < 10) ? ("0" + $index) : (string)$index;
+        $final = ($final + "_" + $idxStr);
+    }
+    
+    if ($lodSuffix != "") {
+        $final = ($final + $lodSuffix);
+    }
+
+    return $final;
+}
+
+global proc runAdvancedFix() {
+    string $sel[] = `ls -sl`;
+    if (size($sel) == 0) { warning "Selection is empty. Please select objects to rename."; return; }
+
+    string $baseNames[];
+    int $counts[];
+    
+    // Pass 1: Frequency Analysis
+    for ($obj in $sel) {
+        string $clean = `match "^[^0-9]+" $obj`;
+        int $found = -1;
+        for ($i=0; $i<size($baseNames); $i++) {
+            if ($baseNames[$i] == $clean) { $found = $i; break; }
+        }
+        if ($found == -1) {
+            $baseNames[size($baseNames)] = $clean;
+            $counts[size($counts)] = 1;
+        } else {
+            $counts[$found] = $counts[$found] + 1;
+        }
+    }
+
+    // Pass 2: Apply Rename
+    string $processedBases[];
+    int $currentIdx[];
+
+    for ($obj in $sel) {
+        string $clean = `match "^[^0-9]+" $obj`;
+        int $baseIdx = -1;
+        for ($i=0; $i<size($baseNames); $i++) {
+            if ($baseNames[$i] == $clean) { $baseIdx = $i; break; }
+        }
+
+        int $thisIterIdx = 1;
+        int $procIdx = -1;
+        for ($j=0; $j<size($processedBases); $j++) {
+            if ($processedBases[$j] == $clean) { $procIdx = $j; break; }
+        }
+
+        if ($procIdx == -1) {
+            $processedBases[size($processedBases)] = $clean;
+            $currentIdx[size($currentIdx)] = 1;
+        } else {
+            $currentIdx[$procIdx] = $currentIdx[$procIdx] + 1;
+            $thisIterIdx = $currentIdx[$procIdx];
+        }
+
+        string $final = getSmartName($obj, $thisIterIdx, $counts[$baseIdx]);
+        if ($obj != $final) {
+            rename $obj $final;
+        }
+    }
+    print "\n[TechArt] Conditional renaming complete.";
+}
+
+// --- 2. MAINTENANCE UTILITIES ---
+
+global proc finalizeMesh() {
+    string $sel[] = `ls -sl`;
+    if (size($sel) == 0) { warning "Please select meshes to clean."; return; }
+    
+    int $c = 0;
+    for ($obj in $sel) {
+        string $shapes[] = `listRelatives -s $obj`;
+        if (size($shapes) > 0 && `nodeType $shapes[0]` == "mesh") {
+            delete -ch $obj;
+            makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 $obj; 
+            xform -cp $obj; 
+            $c++;
+        }
+    }
+    confirmDialog -t "Process Complete" -m ($c + " meshes cleaned (History Deleted / Frozen).") -b "Close";
+}
+
+global proc runAuditor() {
+    string $toAnalyze[] = `ls -type "transform"`;
+    string $broken[];
+    for ($obj in $toAnalyze) {
+        if ($obj == "front" || $obj == "persp" || $obj == "side" || $obj == "top") continue;
+        
+        string $shapes[] = `listRelatives -s $obj`;
+        if (size($shapes) > 0 && `nodeType $shapes[0]` == "mesh") {
+             if (!`startsWith $obj "SM_"` && !`startsWith $obj "SK_"`) $broken[size($broken)] = $obj;
+        }
+    }
+    if (size($broken) > 0) {
+        select -r $broken;
+        confirmDialog -t "Scene Auditor" -m (size($broken) + " objects do not follow naming conventions. They have been selected.") -b "Fixing time!";
+    } else {
+        confirmDialog -t "Scene Auditor" -m "Scene is clean! All meshes follow naming standards." -b "Perfect";
+    }
+}
+
+// --- 3. UI DESIGN (SENIOR EDITION) ---
+
+global proc showTechArtUI() {
+    if (`window -exists TechArtToolkit`) deleteUI TechArtToolkit;
+
+    window -title "UE Production Toolkit" -iconName "UE Tool" -w 320 -h 400 -s 1 TechArtToolkit;
+    
+    string $mainCol = `columnLayout -adj 1 -rs 4`;
+        
+        // Header Image/Color
+        canvas -h 60 -rgb 0.14 0.14 0.14; 
+        setParent ..;
+        
+        columnLayout -adj 1 -rs 8 -co "both" 18;
+            separator -st "none" -h 5;
+            text -l "UE PIPELINE MANAGER" -fn "boldLabelFont" -al "center" -h 30;
+            separator -st "single" -h 10;
+
+            // Tools Section
+            text -l "SCENE AUDIT" -al "left" -fn "smallBoldLabelFont" -en 0;
+            button -l "CHECK NAMING CONVENTIONS" 
+                -bgc 0.35 0.15 0.15 
+                -h 40 
+                -ann "Find meshes without SM_ or SK_ prefixes"
+                -c "runAuditor()";
+            
+            separator -st "none" -h 5;
+            text -l "ORGANIZATION" -al "left" -fn "smallBoldLabelFont" -en 0;
+            button -l "SMART RENAME (AUTO-PREFIX)" 
+                -bgc 0.2 0.35 0.45 
+                -h 50 
+                -ann "Auto-detect SK/SM and apply clean naming with smart indexing"
+                -c "runAdvancedFix()";
+
+            separator -st "none" -h 5;
+            text -l "OPTIMIZATION" -al "left" -fn "smallBoldLabelFont" -en 0;
+            button -l "FINALIZE MESH (DEL/FREEZE)" 
+                -bgc 0.25 0.25 0.25 
+                -h 40 
+                -ann "Delete History, Freeze Transformations, and Center Pivot"
+                -c "finalizeMesh()";
+
+            separator -st "none" -h 25;
+            text -l "v13.0 | SENIOR TECH ART" -al "center" -en 0 -fn "smallPlainLabelFont";
+            separator -st "none" -h 10;
+
+    showWindow TechArtToolkit;
+}
+
+// Launch
+showTechArtUI();
