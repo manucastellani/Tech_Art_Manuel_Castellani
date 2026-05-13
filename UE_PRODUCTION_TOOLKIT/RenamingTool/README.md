@@ -1,4 +1,4 @@
-# 🛠️ Renaming Tool (Maya MEL)
+# 🛠️ UE PRODUCTION TOOLKIT (Maya MEL)
 
 _UE Production Toolkit is a professional-grade script for Autodesk Maya designed to streamline the pipeline between Maya and Unreal Engine. It automates naming conventions, geometry cleanup, and scene auditing to ensure engine-ready assets._
 
