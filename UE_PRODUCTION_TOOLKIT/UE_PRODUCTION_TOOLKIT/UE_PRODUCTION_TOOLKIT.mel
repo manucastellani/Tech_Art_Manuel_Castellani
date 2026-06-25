@@ -38,7 +38,7 @@ proc string getSmartName(string $obj, int $index, int $totalCount) {
 
     // [B] AUTOMATIC PREFIX DETECTION
     string $prefix = ""; 
-    string $shapes[] = `listRelatives -s $obj`;
+    string $shapes[] = `listRelatives -s -f $obj`;
     
     if (`nodeType $obj` == "joint") {
         $prefix = "JNT";
@@ -142,7 +142,7 @@ global proc finalizeMesh() {
     
     int $c = 0;
     for ($obj in $sel) {
-        string $shapes[] = `listRelatives -s $obj`;
+        string $shapes[] = `listRelatives -s -f $obj`;
         if (size($shapes) > 0 && `nodeType $shapes[0]` == "mesh") {
             delete -ch $obj;
             makeIdentity -apply true -t 1 -r 1 -s 1 -n 0 -pn 1 $obj; 
@@ -159,7 +159,7 @@ global proc runAuditor() {
     for ($obj in $toAnalyze) {
         if ($obj == "front" || $obj == "persp" || $obj == "side" || $obj == "top") continue;
         
-        string $shapes[] = `listRelatives -s $obj`;
+        string $shapes[] = `listRelatives -s -f $obj`;
         if (size($shapes) > 0 && `nodeType $shapes[0]` == "mesh") {
              if (!`startsWith $obj "SM_"` && !`startsWith $obj "SK_"`) $broken[size($broken)] = $obj;
         }
@@ -169,6 +169,57 @@ global proc runAuditor() {
         confirmDialog -t "Scene Auditor" -m (size($broken) + " objects do not follow naming conventions. They have been selected.") -b "Fixing time!";
     } else {
         confirmDialog -t "Scene Auditor" -m "Scene is clean! All meshes follow naming standards." -b "Perfect";
+    }
+}
+
+global proc runDuplicateCheck() {
+    // Long (full DAG) paths are always unique, so we derive the short name
+    // from each and count how often it appears. Anything appearing more than
+    // once is a non-unique name that breaks UE export (assets overwrite each other).
+    string $allNodes[] = `ls -l -type "transform" -type "mesh"`;
+
+    string $shortNames[];
+    int    $counts[];
+
+    // Pass 1: Frequency analysis of short names
+    for ($node in $allNodes) {
+        string $tokens[];
+        tokenize $node "|" $tokens;
+        string $short = $tokens[size($tokens)-1];
+
+        int $found = -1;
+        for ($i = 0; $i < size($shortNames); $i++) {
+            if ($shortNames[$i] == $short) { $found = $i; break; }
+        }
+        if ($found == -1) {
+            $shortNames[size($shortNames)] = $short;
+            $counts[size($counts)] = 1;
+        } else {
+            $counts[$found] = $counts[$found] + 1;
+        }
+    }
+
+    // Pass 2: Collect every node whose short name is shared by another node
+    string $dupes[];
+    for ($node in $allNodes) {
+        string $tokens[];
+        tokenize $node "|" $tokens;
+        string $short = $tokens[size($tokens)-1];
+        for ($i = 0; $i < size($shortNames); $i++) {
+            if ($shortNames[$i] == $short && $counts[$i] > 1) {
+                $dupes[size($dupes)] = $node;
+                break;
+            }
+        }
+    }
+
+    if (size($dupes) > 0) {
+        select -r $dupes;
+        confirmDialog -t "Duplicate Name Check"
+            -m (size($dupes) + " nodes share non-unique names and have been selected.\nRename them (Smart Rename gives each a unique index) before exporting to Unreal.")
+            -b "Got it";
+    } else {
+        confirmDialog -t "Duplicate Name Check" -m "No duplicate names found. All node names are unique and UE-safe." -b "Perfect";
     }
 }
 
@@ -192,12 +243,18 @@ global proc showTechArtUI() {
 
             // Tools Section
             text -l "SCENE AUDIT" -al "left" -fn "smallBoldLabelFont" -en 0;
-            button -l "CHECK NAMING CONVENTIONS" 
-                -bgc 0.35 0.15 0.15 
-                -h 40 
+            button -l "CHECK NAMING CONVENTIONS"
+                -bgc 0.35 0.15 0.15
+                -h 40
                 -ann "Find meshes without SM_ or SK_ prefixes"
                 -c "runAuditor()";
-            
+
+            button -l "CHECK DUPLICATE NAMES"
+                -bgc 0.45 0.30 0.10
+                -h 40
+                -ann "Find non-unique node names that break Unreal export"
+                -c "runDuplicateCheck()";
+
             separator -st "none" -h 5;
             text -l "ORGANIZATION" -al "left" -fn "smallBoldLabelFont" -en 0;
             button -l "SMART RENAME (AUTO-PREFIX)" 
