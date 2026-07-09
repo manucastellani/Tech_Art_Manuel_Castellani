@@ -90,5 +90,5 @@ Publicado bajo la [Licencia MIT](LICENSE).
 ## 👤 Autor
 
 **Manuel Castellani** — Technical Artist & 3D Modeler
-<!-- Completá tus links antes de publicar -->
-[LinkedIn](#) · [ArtStation](#) · [GitHub](https://github.com/manucastellani)
+
+[LinkedIn](https://www.linkedin.com/in/manuel-castellani/) · [ArtStation](https://www.artstation.com/manuelcastellani) · [GitHub](https://github.com/manucastellani)
