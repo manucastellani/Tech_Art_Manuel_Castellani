@@ -1,83 +1,94 @@
-# 🛠️ UE PRODUCTION TOOLKIT (Maya MEL)
+# 🛠️ UE Production Toolkit
 
-_UE Production Toolkit is a professional-grade script for Autodesk Maya designed to streamline the pipeline between Maya and Unreal Engine. It automates naming conventions, geometry cleanup, and scene auditing to ensure engine-ready assets._
+**A Maya → Unreal Engine pipeline utility that enforces naming conventions, validates scenes and cleans geometry — so every asset lands engine-ready.**
 
----
+![Maya](https://img.shields.io/badge/Maya-2022--2027-0696D7?logo=autodesk&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)
+![Qt](https://img.shields.io/badge/PySide-2%20%2F%206-41CD52?logo=qt&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-## ✨ Key Features
+🌐 **English** · [Español](README.es.md)
 
-### 1. Smart Rename (Auto-Prefix)
-
-An intelligent algorithm that analyzes object hierarchy and construction history to rename objects automatically:
-
-- **Prefix Detection:** Automatically assigns `SM_` for Static Meshes and `SK_` for Skeletal Meshes (detects `skinCluster` nodes).
-    
-- **Clutter Cleanup:** Strips production suffixes like `_final`, `_v01`, etc.
-    
-- **LOD & Variation Support:** Preserves technical suffixes such as `_LOD0` or `_A`.
-    
-- **Smart Indexing:** Applies clean padding (`01`, `02`...) when multiple objects share the same base name.
-    
-
-### 2. Scene Auditor
-
-A quick verification system that scans your scene for objects failing to meet naming standards, automatically selecting them for immediate correction.
-
-### 3. Mesh Finalizer
-
-Batch processes essential cleanup operations before export:
-
-- Delete History.
-    
-- Freeze Transformations.
-    
-- Center Pivot.
-    
+<p align="center">
+  <img src="docs/preview.png" alt="UE Production Toolkit UI" width="360">
+</p>
 
 ---
+
+## Overview
+
+Exporting from Maya to Unreal breaks in predictable, boring ways: meshes without the right prefix, duplicate node names that overwrite each other on import, un-frozen transforms, leftover construction history. **UE Production Toolkit** turns those repetitive checks into one-click, artist-friendly actions inside a single PySide window — no console, no external dependencies.
+
+The whole tool ships as **one self-contained `.py` file**: drag it into Maya, hit *Play*, done.
+
+## ✨ Features
+
+| Tool | What it does | Why it matters for Unreal |
+|------|--------------|---------------------------|
+| **Smart Rename** | Auto-detects `SM_` (Static Mesh), `SK_` (Skeletal Mesh) and `JNT_` (joint) prefixes, strips clutter (`_final`, `_v01`), preserves technical suffixes (`_LOD0`, `_A`) and adds padded indices (`_01`, `_02`) when names collide. | Consistent, engine-ready naming with zero manual typing. |
+| **Scene Auditor** | Finds and selects every mesh that doesn't follow the `SM_`/`SK_` convention. | Catch naming violations before they reach the engine. |
+| **Duplicate Name Check** | Detects non-unique short names across the scene and selects them. | Duplicate names silently overwrite each other on FBX import — this stops it. |
+| **Mesh Finalizer** | Batch **Delete History · Freeze Transforms · Center Pivot**. | Clean, predictable transforms in Unreal. |
+
+### Built for artists (UX highlights)
+
+- 🔍 **Non-destructive preview** — Smart Rename shows an *old → new* table **before** touching anything; each new name is **editable by double-click**.
+- 🧾 **Integrated log** — every action is timestamped in an in-window console (no popup spam).
+- ↩️ **One-click Undo** — every batch is a single undo step, so one click (or `Ctrl+Z`) reverts the whole operation.
+- 🦴 **Rig-safe** — meshes with a `skinCluster` are **skipped** by the finalizer (freezing them would break the bind) and reported.
 
 ## 🚀 Installation & Usage
 
-### Step-by-Step Guide
+**No installation. One file.**
 
-To ensure the tool runs correctly in your Maya session, follow these steps:
+1. Drag **`UE_Production_Toolkit.py`** into the Maya viewport (or paste it into the Script Editor → Python tab).
+2. Press **Play / Execute**.
+3. The window opens. That's it.
 
-1. **Copy the Code:** Go to the `RenamingTool_Script.mel` file in this folder and copy the entire code block.
-    
-2. **Open Script Editor:** In Autodesk Maya, open the Script Editor (bottom right icon or `Windows > General Editors > Script Editor`).
-    
-3. **Paste in MEL Tab:** Make sure you are in a MEL tab (not Python). Paste the copied code into the lower panel.
-    
-4. **Execute:** Select all the text (`Ctrl+A`) and press `Numpad Enter` or click the Play (Execute) icon in the toolbar.
-    
+**Optional — make a shelf button:** in the Script Editor, select the code, middle-mouse-drag it onto your shelf.
 
-### Create a Shelf Button
+> Requires Maya 2022–2027. The Qt binding (PySide6 or PySide2) is selected automatically.
 
-To avoid pasting the code every time you restart Maya:
+## 🧠 Technical Highlights
 
-1. In the Script Editor, select the entire code.
-    
-2. With the **Middle Mouse Button**, drag the selected text onto your active Shelf.
-    
-3. Right-click the new icon, select **Edit**, and under the Shelves tab, set an "Icon Label" like `UE_v13`.
-    
+A few engineering decisions worth calling out (this is a portfolio piece, after all):
 
----
+- **Single-file, zero-dependency** — no `pip install`, no path setup. Runs anywhere Maya runs.
+- **PySide6 / PySide2 auto-compat** — one binding shim keeps it working from Maya 2022 (Qt5) through 2027 (Qt6).
+- **Non-destructive by design** — rename logic is split into `plan_rename()` (pure, computes a dry-run) and `apply_rename()` (mutates). The UI previews the plan before committing.
+- **Safe hierarchy renaming** — renames are applied deepest-first so renaming a parent never invalidates a child's DAG path.
+- **Atomic undo** — batch operations are wrapped in an `undoInfo` chunk context manager.
+- **Tested logic** — the naming rules are validated against a suite of edge cases (LODs, variants, versioned/`_final` clutter, joint suffixes, index padding).
 
-## 💻 Requirements
+## 🗺️ Roadmap
 
-- **Autodesk Maya:** Compatible with 2024 and newer versions.
-    
-- **OS:** Windows, macOS, Linux.
-    
+- [ ] FBX export to Unreal with correct presets (smoothing groups, tangents) — one click.
+- [ ] Collision naming helper (`UCX_` prefix).
+- [ ] Lightmap UV audit (second UV channel check).
+- [ ] Geometry validation (non-uniform/negative scale, n-gons, non-manifold).
+- [ ] User-configurable prefix conventions.
 
----
+## 📁 Project Structure
+
+```
+UE_Production_Toolkit/
+├── UE_Production_Toolkit.py   # the tool — a single self-contained file
+├── README.md                  # this file (English)
+├── README.es.md               # Spanish version
+├── LICENSE                    # MIT
+├── docs/                      # screenshots / GIFs
+└── legacy/
+    └── UE_PRODUCTION_TOOLKIT.mel   # original MEL version (project origin)
+```
+
+> The `legacy/` folder keeps the original MEL prototype — the tool was later rewritten in Python + PySide with a modular, tested and non-destructive design.
 
 ## 📄 License
 
-This project is licensed under the MIT License. Feel free to use, modify, and distribute it in your productions.
+Released under the [MIT License](LICENSE).
 
+## 👤 Author
 
-<img width="800" height="465" alt="Grabacin2026-04-29191259-ezgif com-video-to-gif-converter" src="https://github.com/user-attachments/assets/86d8a79f-08bd-4825-adb2-10bd5df2dd31" />
-
-
+**Manuel Castellani** — Technical Artist & 3D Modeler
+<!-- Completá tus links antes de publicar -->
+[LinkedIn](#) · [ArtStation](#) · [GitHub](https://github.com/manucastellani)
